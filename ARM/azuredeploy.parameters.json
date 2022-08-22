@@ -1,0 +1,21 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "networkProfiles_acg_profile_name": {
+            "value": null
+        },
+        "storageAccounts_taillabs984_name": {
+            "value": null
+        },
+        "registries_taillab_name": {
+            "value": null
+        },
+        "virtualNetworks_vnet_tailsnet_name": {
+            "value": null
+        },
+        "containerGroups_tailscg984_name": {
+            "value": null
+        }
+    }
+}
