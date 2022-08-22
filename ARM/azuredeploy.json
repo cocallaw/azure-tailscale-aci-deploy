@@ -29,7 +29,7 @@
             "type": "Microsoft.ContainerInstance/containerGroups",
             "apiVersion": "2021-10-01",
             "name": "[parameters('aci_containergroup_name')]",
-            "location": "eastus",
+            "location": "[resourceGroup().location]",
             "identity": {
                 "type": "None"
             },
@@ -111,7 +111,7 @@
             "type": "Microsoft.ContainerRegistry/registries",
             "apiVersion": "2022-02-01-preview",
             "name": "[parameters('tailscale_registry_name')]",
-            "location": "eastus",
+            "location": "[resourceGroup().location]",
             "sku": {
                 "name": "Standard",
                 "tier": "Standard"
@@ -155,7 +155,7 @@
             "type": "Microsoft.Network/virtualNetworks",
             "apiVersion": "2020-11-01",
             "name": "[parameters('virtualNetworks_vnet_tailsnet_name')]",
-            "location": "eastus",
+            "location": "[resourceGroup().location]",
             "properties": {
                 "addressSpace": {
                     "addressPrefixes": [
@@ -202,7 +202,7 @@
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2021-09-01",
             "name": "[parameters('aci_storageaccount_name')]",
-            "location": "eastus",
+            "location": "[resourceGroup().location]",
             "sku": {
                 "name": "Standard_LRS",
                 "tier": "Standard"
@@ -245,7 +245,7 @@
             "type": "Microsoft.Network/networkProfiles",
             "apiVersion": "2020-11-01",
             "name": "[parameters('acg_networkprofile_name')]",
-            "location": "eastus",
+            "location": "[resourceGroup().location]",
             "dependsOn": [
                 "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_vnet_tailsnet_name'), 'sn15')]"
             ],
