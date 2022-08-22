@@ -2,15 +2,15 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "networkProfiles_acg_profile_name": {
+        "acg_networkprofile_name": {
             "defaultValue": "acg-profile",
             "type": "String"
         },
-        "storageAccounts_taillabs984_name": {
+        "aci_storageaccount_name": {
             "defaultValue": "taillabs984",
             "type": "String"
         },
-        "registries_taillab_name": {
+        "tailscale_registry_name": {
             "defaultValue": "taillab",
             "type": "String"
         },
@@ -18,7 +18,7 @@
             "defaultValue": "vnet-tailsnet",
             "type": "String"
         },
-        "containerGroups_tailscg984_name": {
+        "aci_containergroup_name": {
             "defaultValue": "tailscg984",
             "type": "String"
         }
@@ -28,7 +28,7 @@
         {
             "type": "Microsoft.ContainerInstance/containerGroups",
             "apiVersion": "2021-10-01",
-            "name": "[parameters('containerGroups_tailscg984_name')]",
+            "name": "[parameters('aci_containergroup_name')]",
             "location": "eastus",
             "identity": {
                 "type": "None"
@@ -110,7 +110,7 @@
         {
             "type": "Microsoft.ContainerRegistry/registries",
             "apiVersion": "2022-02-01-preview",
-            "name": "[parameters('registries_taillab_name')]",
+            "name": "[parameters('tailscale_registry_name')]",
             "location": "eastus",
             "sku": {
                 "name": "Standard",
@@ -201,7 +201,7 @@
         {
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2021-09-01",
-            "name": "[parameters('storageAccounts_taillabs984_name')]",
+            "name": "[parameters('aci_storageaccount_name')]",
             "location": "eastus",
             "sku": {
                 "name": "Standard_LRS",
@@ -244,7 +244,7 @@
         {
             "type": "Microsoft.Network/networkProfiles",
             "apiVersion": "2020-11-01",
-            "name": "[parameters('networkProfiles_acg_profile_name')]",
+            "name": "[parameters('acg_networkprofile_name')]",
             "location": "eastus",
             "dependsOn": [
                 "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_vnet_tailsnet_name'), 'sn15')]"
@@ -266,7 +266,7 @@
                             ],
                             "containerNetworkInterfaces": [
                                 {
-                                    "id": "[concat(resourceId('Microsoft.Network/networkProfiles', parameters('networkProfiles_acg_profile_name')), '/containerNetworkInterfaces/a2001e9e-7635-4987-a535-c4947c5656b7_acg-nic')]"
+                                    "id": "[concat(resourceId('Microsoft.Network/networkProfiles', parameters('acg_networkprofile_name')), '/containerNetworkInterfaces/a2001e9e-7635-4987-a535-c4947c5656b7_acg-nic')]"
                                 }
                             ]
                         }
@@ -314,9 +314,9 @@
         {
             "type": "Microsoft.Storage/storageAccounts/blobServices",
             "apiVersion": "2021-09-01",
-            "name": "[concat(parameters('storageAccounts_taillabs984_name'), '/default')]",
+            "name": "[concat(parameters('aci_storageaccount_name'), '/default')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_taillabs984_name'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aci_storageaccount_name'))]"
             ],
             "sku": {
                 "name": "Standard_LRS",
@@ -335,9 +335,9 @@
         {
             "type": "Microsoft.Storage/storageAccounts/fileServices",
             "apiVersion": "2021-09-01",
-            "name": "[concat(parameters('storageAccounts_taillabs984_name'), '/default')]",
+            "name": "[concat(parameters('aci_storageaccount_name'), '/default')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_taillabs984_name'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aci_storageaccount_name'))]"
             ],
             "sku": {
                 "name": "Standard_LRS",
@@ -359,9 +359,9 @@
         {
             "type": "Microsoft.Storage/storageAccounts/queueServices",
             "apiVersion": "2021-09-01",
-            "name": "[concat(parameters('storageAccounts_taillabs984_name'), '/default')]",
+            "name": "[concat(parameters('aci_storageaccount_name'), '/default')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_taillabs984_name'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aci_storageaccount_name'))]"
             ],
             "properties": {
                 "cors": {
@@ -372,9 +372,9 @@
         {
             "type": "Microsoft.Storage/storageAccounts/tableServices",
             "apiVersion": "2021-09-01",
-            "name": "[concat(parameters('storageAccounts_taillabs984_name'), '/default')]",
+            "name": "[concat(parameters('aci_storageaccount_name'), '/default')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_taillabs984_name'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aci_storageaccount_name'))]"
             ],
             "properties": {
                 "cors": {
@@ -385,10 +385,10 @@
         {
             "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
             "apiVersion": "2021-09-01",
-            "name": "[concat(parameters('storageAccounts_taillabs984_name'), '/default/tailscale-data')]",
+            "name": "[concat(parameters('aci_storageaccount_name'), '/default/tailscale-data')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', parameters('storageAccounts_taillabs984_name'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_taillabs984_name'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', parameters('aci_storageaccount_name'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aci_storageaccount_name'))]"
             ],
             "properties": {
                 "accessTier": "TransactionOptimized",
