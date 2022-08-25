@@ -2,20 +2,39 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "acg_networkprofile_name": {
-            "value": null
+        "vnet_existing_name": {
+            "value": "myvnet"
+        },
+        "vnet_existing_subnet": {
+            "value": "myvnet-subnet"
         },
         "aci_storageaccount_name": {
-            "value": null
-        },
-        "tailscale_registry_name": {
-            "value": null
-        },
-        "virtualNetworks_vnet_tailsnet_name": {
-            "value": null
+            "value": "mystorageaccount"
         },
         "aci_containergroup_name": {
-            "value": null
+            "value": "mycontainergroup"
+        },
+        "tailscale_image_repository": {
+            "value": "myacr.azurecr.io/tailscale"
+        },
+        "tailscale_image_tag": {
+            "value": "latest"
+        },
+        "tailscale_hostname": {
+            "value": "tailscale"
+        },
+        "tailscale__advertise_routes": {
+            "value": "" 
+        },
+        "tailscale_auth_key": {
+            "value": ""
+        },
+        "tailscale_registry_username": {
+            "value": ""
+        },
+        "tailscale_registry_password": {
+            "value": ""
         }
+
     }
 }
