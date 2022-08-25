@@ -1,6 +1,11 @@
 # ARM & Bicep Deployment for Tailscale subnet router in ACI
 
 These Bicep & ARM templates deploy a Tailscale [subnet router][1] as an [Azure Container Instance][2]. The subnet router ACI instance is deployed into an existing Azure Virtual Network and advertises to your Tailnet the CIDR block for the Azure VNet.
+
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcocallaw%2Fazure-tailscale-aci-deploy%2Fmain%2FARM%2Fazuredeploy.json" target="_blank">
+    <img src="https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true"/> 
+</a>
+
 ## Docker Container
 The `docker/Dockerfile` file extends the `tailscale/tailscale`
 [image][3] with an entrypoint script that starts the Tailscale daemon and runs
