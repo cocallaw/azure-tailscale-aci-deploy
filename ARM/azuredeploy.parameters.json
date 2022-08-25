@@ -2,39 +2,38 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "vnet_existing_name": {
-            "value": "myvnet"
+        "vnetExistingName": {
+            "value": "myvnet" 
         },
-        "vnet_existing_subnet": {
-            "value": "myvnet-subnet"
+        "vnetExistingSubnet": {
+            "value": "myvnet-subnet" 
         },
-        "aci_storageaccount_name": {
-            "value": "mystorageaccount"
+        "aciStorageAccountName": {
+            "value": "mystorageaccount" 
         },
-        "aci_containergroup_name": {
-            "value": "mycontainergroup"
+        "aciContainerGroupName": {
+            "value": "mycontainergroup" 
         },
-        "tailscale_image_repository": {
+        "tailscaleImageRepository": {
             "value": "myacr.azurecr.io/tailscale"
         },
-        "tailscale_image_tag": {
+        "tailscaleImageTag": {
             "value": "latest"
         },
-        "tailscale_hostname": {
+        "tailscaleHoasname": {
             "value": "tailscale"
         },
-        "tailscale__advertise_routes": {
+        "tailscaleAdvertiseRoutes": {
+            "value": "10.0.0.0/24,10.10.0.10.0/24" 
+        },
+        "tailscaleAuthKey": {
             "value": "" 
         },
-        "tailscale_auth_key": {
-            "value": ""
+        "tailscaleRegistryUsername": {
+            "value": "" 
         },
-        "tailscale_registry_username": {
-            "value": ""
-        },
-        "tailscale_registry_password": {
-            "value": ""
+        "tailscaleRegistryPassword": {
+            "value": "" 
         }
-
     }
 }

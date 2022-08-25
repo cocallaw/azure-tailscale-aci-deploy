@@ -2,53 +2,53 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "vnet_existing_name": {
+        "vnetExistingName": {
             "type": "String"
         },
-        "vnet_existing_subnet": {
+        "vnetExistingSubnet": {
             "type": "String"
         },
-        "aci_storageaccount_name": {
+        "aciStorageAccountName": {
             "type": "String"
         },
-        "aci_containergroup_name": {
+        "aciContainerGroupName": {
             "type": "String"
         },
-        "tailscale_image_repository": {
+        "tailscaleImageRepository": {
             "defaultValue": "myacr.azurecr.io/tailscale",
             "type": "String"
         },
-        "tailscale_image_tag": {
+        "tailscaleImageTag": {
             "defaultValue": "latest",
             "type": "String"
         },
-        "tailscale_hostname": {
+        "tailscaleHoasname": {
             "defaultValue": "tailscale",
             "type": "String"
         },
-        "tailscale__advertise_routes": {
+        "tailscaleAdvertiseRoutes": {
             "type": "String"
         },
-        "tailscale_auth_key": {
+        "tailscaleAuthKey": {
             "type": "securestring"
         },
-        "tailscale_registry_username": {
+        "tailscaleRegistryUsername": {
             "type": "String"
         },
-        "tailscale_registry_password": {
+        "tailscaleRegistryPassword": {
             "type": "secureString"
         }
     },
     "variables": {
         "acg_networkprofile_name": "acg-profile",
-        "aci_image": "[concat(parameters('tailscale_image_repository'),':',parameters('tailscale_image_tag'))]",
-        "tailscale_image_server": "[first(split(parameters('tailscale_image_repository'),'/'))]"
+        "aci_image": "[concat(parameters('tailscaleImageRepository'),':',parameters('tailscaleImageTag'))]",
+        "tailscale_image_server": "[first(split(parameters('tailscaleImageRepository'),'/'))]"
     },
     "resources": [
         {
             "type": "Microsoft.ContainerInstance/containerGroups",
             "apiVersion": "2021-10-01",
-            "name": "[parameters('aci_containergroup_name')]",
+            "name": "[parameters('aciContainerGroupName')]",
             "location": "[resourceGroup().location]",
             "identity": {
                 "type": "None"
@@ -70,15 +70,15 @@
                             "environmentVariables": [
                                 {
                                     "name": "TAILSCALE_HOSTNAME",
-                                    "value": "[parameters('tailscale_hostname')]"
+                                    "value": "[parameters('tailscaleHoasname')]"
                                 },
                                 {
                                     "name": "TAILSCALE_ADVERTISE_ROUTES",
-                                    "value": "[parameters('tailscale__advertise_routes')]"
+                                    "value": "[parameters('tailscaleAdvertiseRoutes')]"
                                 },
                                 {
                                     "name": "TAILSCALE_AUTH_KEY",
-                                    "value": "[parameters('tailscale_auth_key')]"
+                                    "value": "[parameters('tailscaleAuthKey')]"
                                 }
                             ],
                             "resources": {
@@ -101,8 +101,8 @@
                 "imageRegistryCredentials": [
                     {
                         "server": "[variables('tailscale_image_server')]",
-                        "username": "[parameters('tailscale_registry_username')]",
-                        "password": "[parameters('tailscale_registry_password')]"
+                        "username": "[parameters('tailscaleRegistryUsername')]",
+                        "password": "[parameters('tailscaleRegistryPassword')]"
                     }
                 ],
                 "restartPolicy": "Always",
@@ -129,7 +129,7 @@
                         "azureFile": {
                             "shareName": "tailscale-data",
                             "readOnly": false,
-                            "storageAccountName": "[parameters('aci_storageaccount_name')]"
+                            "storageAccountName": "[parameters('aciStorageAccountName')]"
                         }
                     }
                 ]
@@ -153,7 +153,7 @@
                                     "name": "aci-ts-ipconfig",
                                     "properties": {
                                         "subnet": {
-                                            "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnet_existing_name'), parameters('vnet_existing_subnet'))]"
+                                            "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('vnetExistingSubnet'))]"
                                         }
                                     }
                                 }
@@ -166,7 +166,7 @@
         {
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2021-09-01",
-            "name": "[parameters('aci_storageaccount_name')]",
+            "name": "[parameters('aciStorageAccountName')]",
             "location": "[resourceGroup().location]",
             "sku": {
                 "name": "Standard_LRS",
@@ -209,9 +209,9 @@
         {
             "type": "Microsoft.Storage/storageAccounts/fileServices",
             "apiVersion": "2021-09-01",
-            "name": "[concat(parameters('aci_storageaccount_name'), '/default')]",
+            "name": "[concat(parameters('aciStorageAccountName'), '/default')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aci_storageaccount_name'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aciStorageAccountName'))]"
             ],
             "sku": {
                 "name": "Standard_LRS",
@@ -233,10 +233,10 @@
         {
             "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
             "apiVersion": "2021-09-01",
-            "name": "[concat(parameters('aci_storageaccount_name'), '/default/tailscale-data')]",
+            "name": "[concat(parameters('aciStorageAccountName'), '/default/tailscale-data')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', parameters('aci_storageaccount_name'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aci_storageaccount_name'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', parameters('aciStorageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aciStorageAccountName'))]"
             ],
             "properties": {
                 "accessTier": "TransactionOptimized",
