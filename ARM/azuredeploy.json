@@ -2,28 +2,48 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "acg_networkprofile_name": {
-            "defaultValue": "acg-profile",
+        "vnet_existing_name": {
+            "type": "String"
+        },
+        "vnet_existing_subnet": {
             "type": "String"
         },
         "aci_storageaccount_name": {
-            "defaultValue": "taillabs984",
-            "type": "String"
-        },
-        "tailscale_registry_name": {
-            "defaultValue": "taillab",
-            "type": "String"
-        },
-        "virtualNetworks_vnet_tailsnet_name": {
-            "defaultValue": "vnet-tailsnet",
             "type": "String"
         },
         "aci_containergroup_name": {
-            "defaultValue": "tailscg984",
             "type": "String"
+        },
+        "tailscale_image_repository": {
+            "defaultValue": "myacr.azurecr.io/tailscale",
+            "type": "String"
+        },
+        "tailscale_image_tag": {
+            "defaultValue": "latest",
+            "type": "String"
+        },
+        "tailscale_hostname": {
+            "defaultValue": "tailscale",
+            "type": "String"
+        },
+        "tailscale__advertise_routes": {
+            "type": "String"
+        },
+        "tailscale_auth_key": {
+            "type": "securestring"
+        },
+        "tailscale_registry_username": {
+            "type": "String"
+        },
+        "tailscale_registry_password": {
+            "type": "secureString"
         }
     },
-    "variables": {},
+    "variables": {
+        "acg_networkprofile_name": "acg-profile",
+        "aci_image": "[concat(parameters('tailscale_image_repository'),':',parameters('tailscale_image_tag'))]",
+        "tailscale_image_server": "[first(split(parameters('tailscale_image_repository'),'/'))]"
+    },
     "resources": [
         {
             "type": "Microsoft.ContainerInstance/containerGroups",
@@ -39,7 +59,7 @@
                     {
                         "name": "tailscaleaci",
                         "properties": {
-                            "image": "taillab.azurecr.io/tailscale:v1",
+                            "image": "[variables('aci_image')]",
                             "command": [],
                             "ports": [
                                 {
@@ -50,14 +70,15 @@
                             "environmentVariables": [
                                 {
                                     "name": "TAILSCALE_HOSTNAME",
-                                    "value": "tailacivalidate"
+                                    "value": "[parameters('tailscale_hostname')]"
                                 },
                                 {
                                     "name": "TAILSCALE_ADVERTISE_ROUTES",
-                                    "value": "10.86.0.0/20"
+                                    "value": "[parameters('tailscale__advertise_routes')]"
                                 },
                                 {
-                                    "name": "TAILSCALE_AUTH_KEY"
+                                    "name": "TAILSCALE_AUTH_KEY",
+                                    "value": "[parameters('tailscale_auth_key')]"
                                 }
                             ],
                             "resources": {
@@ -79,8 +100,9 @@
                 "initContainers": [],
                 "imageRegistryCredentials": [
                     {
-                        "server": "taillab.azurecr.io",
-                        "username": "taillab"
+                        "server": "[variables('tailscale_image_server')]",
+                        "username": "[parameters('tailscale_registry_username')]",
+                        "password": "[parameters('tailscale_registry_password')]"
                     }
                 ],
                 "restartPolicy": "Always",
@@ -91,111 +113,54 @@
                             "port": 443
                         }
                     ],
-                    "ip": "10.86.15.4",
                     "type": "Private"
                 },
                 "osType": "Linux",
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkProfiles', variables('acg_networkprofile_name'))]"
+                        }
+                    ]
+                },
                 "volumes": [
                     {
                         "name": "tailscale-volume",
                         "azureFile": {
                             "shareName": "tailscale-data",
                             "readOnly": false,
-                            "storageAccountName": "taillabs984"
+                            "storageAccountName": "[parameters('aci_storageaccount_name')]"
                         }
                     }
                 ]
             }
         },
         {
-            "type": "Microsoft.ContainerRegistry/registries",
-            "apiVersion": "2022-02-01-preview",
-            "name": "[parameters('tailscale_registry_name')]",
-            "location": "[resourceGroup().location]",
-            "sku": {
-                "name": "Standard",
-                "tier": "Standard"
-            },
-            "properties": {
-                "adminUserEnabled": true,
-                "policies": {
-                    "quarantinePolicy": {
-                        "status": "disabled"
-                    },
-                    "trustPolicy": {
-                        "type": "Notary",
-                        "status": "disabled"
-                    },
-                    "retentionPolicy": {
-                        "days": 7,
-                        "status": "disabled"
-                    },
-                    "exportPolicy": {
-                        "status": "enabled"
-                    },
-                    "azureADAuthenticationAsArmPolicy": {
-                        "status": "enabled"
-                    },
-                    "softDeletePolicy": {
-                        "retentionDays": 7,
-                        "status": "disabled"
-                    }
-                },
-                "encryption": {
-                    "status": "disabled"
-                },
-                "dataEndpointEnabled": false,
-                "publicNetworkAccess": "Enabled",
-                "networkRuleBypassOptions": "AzureServices",
-                "zoneRedundancy": "Disabled",
-                "anonymousPullEnabled": false
-            }
-        },
-        {
-            "type": "Microsoft.Network/virtualNetworks",
+            "type": "Microsoft.Network/networkProfiles",
             "apiVersion": "2020-11-01",
-            "name": "[parameters('virtualNetworks_vnet_tailsnet_name')]",
+            "name": "[variables('acg_networkprofile_name')]",
             "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnet_existing_name'), parameters('vnet_existing_subnet'))]"
+            ],
             "properties": {
-                "addressSpace": {
-                    "addressPrefixes": [
-                        "10.86.0.0/20"
-                    ]
-                },
-                "dhcpOptions": {
-                    "dnsServers": []
-                },
-                "subnets": [
+                "containerNetworkInterfaceConfigurations": [
                     {
-                        "name": "sn00",
+                        "name": "acg-nic",
                         "properties": {
-                            "addressPrefix": "10.86.0.0/24",
-                            "serviceEndpoints": [],
-                            "delegations": [],
-                            "privateEndpointNetworkPolicies": "Disabled",
-                            "privateLinkServiceNetworkPolicies": "Enabled"
-                        }
-                    },
-                    {
-                        "name": "sn15",
-                        "properties": {
-                            "addressPrefix": "10.86.15.0/24",
-                            "serviceEndpoints": [],
-                            "delegations": [
+                            "ipConfigurations": [
                                 {
-                                    "name": "Microsoft.ContainerInstance.containerGroups",
+                                    "name": "aci-ts-ipconfig",
                                     "properties": {
-                                        "serviceName": "Microsoft.ContainerInstance/containerGroups"
+                                        "subnet": {
+                                            "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnet_existing_name'), parameters('vnet_existing_subnet'))]"
+                                        }
                                     }
                                 }
-                            ],
-                            "privateEndpointNetworkPolicies": "Disabled",
-                            "privateLinkServiceNetworkPolicies": "Enabled"
+                            ]
                         }
                     }
-                ],
-                "virtualNetworkPeerings": [],
-                "enableDdosProtection": false
+                ]
             }
         },
         {
@@ -242,97 +207,6 @@
             }
         },
         {
-            "type": "Microsoft.Network/networkProfiles",
-            "apiVersion": "2020-11-01",
-            "name": "[parameters('acg_networkprofile_name')]",
-            "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_vnet_tailsnet_name'), 'sn15')]"
-            ],
-            "properties": {
-                "containerNetworkInterfaceConfigurations": [
-                    {
-                        "name": "acg-nic",
-                        "properties": {
-                            "ipConfigurations": [
-                                {
-                                    "name": "aci-ts-ipconfig",
-                                    "properties": {
-                                        "subnet": {
-                                            "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_vnet_tailsnet_name'), 'sn15')]"
-                                        }
-                                    }
-                                }
-                            ],
-                            "containerNetworkInterfaces": [
-                                {
-                                    "id": "[concat(resourceId('Microsoft.Network/networkProfiles', parameters('acg_networkprofile_name')), '/containerNetworkInterfaces/a2001e9e-7635-4987-a535-c4947c5656b7_acg-nic')]"
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            "type": "Microsoft.Network/virtualNetworks/subnets",
-            "apiVersion": "2020-11-01",
-            "name": "[concat(parameters('virtualNetworks_vnet_tailsnet_name'), '/sn00')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_vnet_tailsnet_name'))]"
-            ],
-            "properties": {
-                "addressPrefix": "10.86.0.0/24",
-                "serviceEndpoints": [],
-                "delegations": [],
-                "privateEndpointNetworkPolicies": "Disabled",
-                "privateLinkServiceNetworkPolicies": "Enabled"
-            }
-        },
-        {
-            "type": "Microsoft.Network/virtualNetworks/subnets",
-            "apiVersion": "2020-11-01",
-            "name": "[concat(parameters('virtualNetworks_vnet_tailsnet_name'), '/sn15')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_vnet_tailsnet_name'))]"
-            ],
-            "properties": {
-                "addressPrefix": "10.86.15.0/24",
-                "serviceEndpoints": [],
-                "delegations": [
-                    {
-                        "name": "Microsoft.ContainerInstance.containerGroups",
-                        "properties": {
-                            "serviceName": "Microsoft.ContainerInstance/containerGroups"
-                        }
-                    }
-                ],
-                "privateEndpointNetworkPolicies": "Disabled",
-                "privateLinkServiceNetworkPolicies": "Enabled"
-            }
-        },
-        {
-            "type": "Microsoft.Storage/storageAccounts/blobServices",
-            "apiVersion": "2021-09-01",
-            "name": "[concat(parameters('aci_storageaccount_name'), '/default')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aci_storageaccount_name'))]"
-            ],
-            "sku": {
-                "name": "Standard_LRS",
-                "tier": "Standard"
-            },
-            "properties": {
-                "cors": {
-                    "corsRules": []
-                },
-                "deleteRetentionPolicy": {
-                    "allowPermanentDelete": false,
-                    "enabled": false
-                }
-            }
-        },
-        {
             "type": "Microsoft.Storage/storageAccounts/fileServices",
             "apiVersion": "2021-09-01",
             "name": "[concat(parameters('aci_storageaccount_name'), '/default')]",
@@ -353,32 +227,6 @@
                 "shareDeleteRetentionPolicy": {
                     "enabled": true,
                     "days": 7
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Storage/storageAccounts/queueServices",
-            "apiVersion": "2021-09-01",
-            "name": "[concat(parameters('aci_storageaccount_name'), '/default')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aci_storageaccount_name'))]"
-            ],
-            "properties": {
-                "cors": {
-                    "corsRules": []
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Storage/storageAccounts/tableServices",
-            "apiVersion": "2021-09-01",
-            "name": "[concat(parameters('aci_storageaccount_name'), '/default')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('aci_storageaccount_name'))]"
-            ],
-            "properties": {
-                "cors": {
-                    "corsRules": []
                 }
             }
         },
