@@ -1,0 +1,51 @@
+name: ARM Template Validation
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+# JOB to run change detection
+  changes:
+    runs-on: ubuntu-latest
+    # Set job outputs to values from filter step
+    outputs:
+      armtemplate: ${{ steps.filter.outputs.armtemplate }}
+    steps:
+    # For pull requests it's not necessary to checkout the code
+    - uses: actions/checkout@v2
+    
+    - uses: dorny/paths-filter@v2
+      id: filter
+      with:
+        filters: |
+          armtemplate:
+            - 'ARM/*.json'
+
+  # JOB to build and test ARM template
+  armtemplate:
+    needs: changes
+    if: ${{ needs.changes.outputs.armtemplate == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Test ARM Templates - path
+        id: pathtest
+        uses: aliencube/arm-ttk-actions@v0.3
+        with:
+          path: ./ARM/*
+
+      - name: Test result - path
+        shell: bash
+        continue-on-error: true
+        run: |
+          echo "${{ toJSON(fromJSON(steps.pathtest.outputs.results)) }}"
