@@ -140,9 +140,7 @@
             "apiVersion": "2020-11-01",
             "name": "[variables('acg_networkprofile_name')]",
             "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnet_existing_name'), parameters('vnet_existing_subnet'))]"
-            ],
+            "dependsOn": [],
             "properties": {
                 "containerNetworkInterfaceConfigurations": [
                     {
