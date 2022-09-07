@@ -1,25 +1,52 @@
+param region string = resourceGroup().location
 param vnetExistingName string
 param vnetExistingSubnet string
 param aciStorageAccountName string
 param aciContainerGroupName string
+
+@description('Selecting DockerHub will pull the Tailscale image from hub.docker.com/r/cocallaw/tailscale-sr.')
+@allowed([
+  'DockerHub'
+  'ACR'
+])
+param containerRegistry string = 'DockerHub'
+
+@description('If DockerHub is selcted as the Container Registry, leave as default value or empty')
 param tailscaleImageRepository string = 'myacr.azurecr.io/tailscale'
+
+@description('If DockerHub is selcted as the Container Registry, leave as default value or empty')
 param tailscaleImageTag string = 'latest'
 param tailscaleHoasname string = 'tailscale'
 param tailscaleAdvertiseRoutes string
-param tailscaleRegistryUsername string
 
 @secure()
 param tailscaleAuthKey string
+param tailscaleRegistryUsername string = ''
 
 @secure()
-param tailscaleRegistryPassword string
+param tailscaleRegistryPassword string = ''
 
-var aci_image = '${tailscaleImageRepository}:${tailscaleImageTag}'
+var dh_image = 'cocallaw/tailscale-sr:latest'
+var acr_image = '${tailscaleImageRepository}:${tailscaleImageTag}'
 var tailscale_image_server = first(split(tailscaleImageRepository, '/'))
+var registry_refrence = registry_list[containerRegistry]
+var registry_list = {
+  DockerHub: []
+  ACR: {
+    server: tailscale_image_server
+    username: tailscaleRegistryUsername
+    password: tailscaleRegistryPassword
+  }
+}
+var image_refrence = image_list[containerRegistry]
+var image_list = {
+  DockerHub: dh_image
+  ACR: acr_image
+}
 
 resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGroups@2021-10-01' = {
   name: aciContainerGroupName
-  location: resourceGroup().location
+  location: region
   identity: {
     type: 'None'
   }
@@ -29,7 +56,7 @@ resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGr
       {
         name: 'tailscaleaci'
         properties: {
-          image: aci_image
+          image: image_refrence
           command: []
           ports: [
             {
@@ -68,13 +95,7 @@ resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGr
       }
     ]
     initContainers: []
-    imageRegistryCredentials: [
-      {
-        server: tailscale_image_server
-        username: tailscaleRegistryUsername
-        password: tailscaleRegistryPassword
-      }
-    ]
+    imageRegistryCredentials: registry_refrence
     restartPolicy: 'Always'
     ipAddress: {
       ports: [
@@ -110,7 +131,7 @@ resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGr
 
 resource aciStorageAccountName_resource 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   name: aciStorageAccountName
-  location: resourceGroup().location
+  location: region
   kind: 'StorageV2'
   sku: {
     name: 'Standard_LRS'
@@ -147,7 +168,7 @@ resource aciStorageAccountName_resource 'Microsoft.Storage/storageAccounts@2021-
   }
 }
 
-resource aciStorageAccount_tailscale_data_share 'Microsoft.Storage/storageAccounts/fileServices/shares@2021-09-01' = {
+resource aciStorageAccountName_default_tailscale_data 'Microsoft.Storage/storageAccounts/fileServices/shares@2021-09-01' = {
   name: '${aciStorageAccountName}/default/tailscale-data'
   dependsOn: [
     aciStorageAccountName_resource

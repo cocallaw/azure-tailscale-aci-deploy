@@ -14,13 +14,30 @@
         "aciContainerGroupName": {
             "type": "String"
         },
+        "containerRegistry": {
+            "type": "string",
+            "defaultValue": "DockerHub",
+            "allowedValues": [
+                "DockerHub",
+                "ACR"
+            ],
+            "metadata": {
+                "description": "Selecting DockerHub will pull the Tailscale image from hub.docker.com/r/cocallaw/tailscale-sr."
+            }
+        },
         "tailscaleImageRepository": {
             "defaultValue": "myacr.azurecr.io/tailscale",
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "If DockerHub is selcted as the Container Registry, leave as default value or empty"
+            }
         },
         "tailscaleImageTag": {
             "defaultValue": "latest",
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "If DockerHub is selcted as the Container Registry, leave as default value or empty"
+            }
         },
         "tailscaleHoasname": {
             "defaultValue": "tailscale",
@@ -33,15 +50,33 @@
             "type": "securestring"
         },
         "tailscaleRegistryUsername": {
+            "defaultValue": "",
             "type": "String"
         },
         "tailscaleRegistryPassword": {
+            "defaultValue": "",
             "type": "secureString"
+
         }
     },
     "variables": {
-        "aci_image": "[concat(parameters('tailscaleImageRepository'),':',parameters('tailscaleImageTag'))]",
-        "tailscale_image_server": "[first(split(parameters('tailscaleImageRepository'),'/'))]"
+        "dh_image": "cocallaw/tailscale-sr:latest",
+        "acr_image": "[concat(parameters('tailscaleImageRepository'),':',parameters('tailscaleImageTag'))]",
+        "tailscale_image_server": "[first(split(parameters('tailscaleImageRepository'),'/'))]",
+        "registry_refrence": "[variables('registry_list')[parameters('containerRegistry')]]",
+        "registry_list": {
+            "DockerHub": [],
+            "ACR": {
+                "server": "[variables('tailscale_image_server')]",
+                "username": "[parameters('tailscaleRegistryUsername')]",
+                "password": "[parameters('tailscaleRegistryPassword')]"
+            }
+        },
+        "image_refrence": "[variables('image_list')[parameters('containerRegistry')]]",
+        "image_list": {
+            "DockerHub": "[variables('dh_image')]",
+            "ACR": "[variables('acr_image')]"
+        }
     },
     "resources": [
         {
@@ -61,7 +96,7 @@
                     {
                         "name": "tailscaleaci",
                         "properties": {
-                            "image": "[variables('aci_image')]",
+                            "image": "[variables('image_refrence')]",
                             "command": [],
                             "ports": [
                                 {
@@ -100,13 +135,7 @@
                     }
                 ],
                 "initContainers": [],
-                "imageRegistryCredentials": [
-                    {
-                        "server": "[variables('tailscale_image_server')]",
-                        "username": "[parameters('tailscaleRegistryUsername')]",
-                        "password": "[parameters('tailscaleRegistryPassword')]"
-                    }
-                ],
+                "imageRegistryCredentials": "[variables('registry_refrence')]",
                 "restartPolicy": "Always",
                 "ipAddress": {
                     "ports": [
