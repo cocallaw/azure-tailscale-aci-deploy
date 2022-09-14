@@ -33,7 +33,7 @@ jobs:
   build_and_test:
     needs: changes
     if: ${{ needs.changes.outputs.biceptemplate == 'true' }}
-    name: Secure Lab Bicep Build and Test
+    name: Bicep Build and Test
 
     runs-on: ubuntu-latest
 

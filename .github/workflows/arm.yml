@@ -34,6 +34,7 @@ jobs:
   armtemplate:
     needs: changes
     if: ${{ needs.changes.outputs.armtemplate == 'true' }}
+    name: ARM Template Validation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
