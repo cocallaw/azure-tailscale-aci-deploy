@@ -1,3 +1,4 @@
+param region string = resourceGroup().location
 param vnetExistingName string
 param vnetExistingSubnet string
 param aciStorageAccountName string
@@ -71,7 +72,7 @@ var containersize_list = {
 
 resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGroups@2021-10-01' = {
   name: aciContainerGroupName
-  location: resourceGroup().location
+  location: region
   identity: {
     type: 'None'
   }
@@ -116,7 +117,6 @@ resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGr
         }
       }
     ]
-    initContainers: []
     imageRegistryCredentials: registry_refrence
     restartPolicy: 'Always'
     ipAddress: {
@@ -153,7 +153,7 @@ resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGr
 
 resource aciStorageAccountName_resource 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   name: aciStorageAccountName
-  location: resourceGroup().location
+  location: region
   kind: 'StorageV2'
   sku: {
     name: 'Standard_LRS'
@@ -168,8 +168,6 @@ resource aciStorageAccountName_resource 'Microsoft.Storage/storageAccounts@2021-
     isHnsEnabled: false
     networkAcls: {
       bypass: 'AzureServices'
-      virtualNetworkRules: []
-      ipRules: []
       defaultAction: 'Allow'
     }
     supportsHttpsTrafficOnly: true
@@ -190,7 +188,7 @@ resource aciStorageAccountName_resource 'Microsoft.Storage/storageAccounts@2021-
   }
 }
 
-resource aciStorageAccountName_default_tailscale_data 'Microsoft.Storage/storageAccounts/fileServices/shares@2021-09-01' = {
+resource aciStorageAccountName_default_tailscale_data 'Microsoft.Storage/storageAccounts/fileServices/shares@2022-05-01' = {
   name: '${aciStorageAccountName}/default/tailscale-data'
   dependsOn: [
     aciStorageAccountName_resource

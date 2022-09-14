@@ -164,7 +164,6 @@
                         }
                     }
                 ],
-                "initContainers": [],
                 "imageRegistryCredentials": "[variables('registry_refrence')]",
                 "restartPolicy": "Always",
                 "ipAddress": {
@@ -214,8 +213,6 @@
                 "isHnsEnabled": false,
                 "networkAcls": {
                     "bypass": "AzureServices",
-                    "virtualNetworkRules": [],
-                    "ipRules": [],
                     "defaultAction": "Allow"
                 },
                 "supportsHttpsTrafficOnly": true,
@@ -237,7 +234,7 @@
         },
         {
             "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
-            "apiVersion": "2021-09-01",
+            "apiVersion": "2022-05-01",
             "name": "[concat(parameters('aciStorageAccountName'), '/default/tailscale-data')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', parameters('aciStorageAccountName'))]"
