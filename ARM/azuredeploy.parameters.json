@@ -14,15 +14,6 @@
         "aciContainerGroupName": {
             "value": "mycontainergroup" 
         },
-        "containerRegistry": {
-            "value": "DockerHub"
-        },
-        "tailscaleImageRepository": {
-            "value": "myacr.azurecr.io/tailscale"
-        },
-        "tailscaleImageTag": {
-            "value": "latest"
-        },
         "tailscaleHoasname": {
             "value": "tailscale"
         },
@@ -31,6 +22,18 @@
         },
         "tailscaleAuthKey": {
             "value": "" 
+        },
+        "containerSize": {
+            "value": "Small" 
+        },
+        "containerRegistry": {
+            "value": "DockerHub"
+        },
+        "tailscaleImageRepository": {
+            "value": "myacr.azurecr.io/tailscale"
+        },
+        "tailscaleImageTag": {
+            "value": "latest"
         },
         "tailscaleRegistryUsername": {
             "value": "" 

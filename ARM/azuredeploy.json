@@ -14,6 +14,28 @@
         "aciContainerGroupName": {
             "type": "String"
         },
+        "tailscaleHoasname": {
+            "defaultValue": "tailscale",
+            "type": "String"
+        },
+        "tailscaleAdvertiseRoutes": {
+            "type": "String"
+        },
+        "tailscaleAuthKey": {
+            "type": "securestring"
+        },
+        "containerSize": {
+            "type": "String",
+            "defaultValue": "Small",
+            "allowedValues": [
+                "Small",
+                "Medium",
+                "Large"
+            ],
+            "metadata": {
+                "description": "Size of the ACI container to deploy"
+            }
+        },
         "containerRegistry": {
             "type": "string",
             "defaultValue": "DockerHub",
@@ -39,23 +61,19 @@
                 "description": "If DockerHub is selcted as the Container Registry, leave as default value or empty"
             }
         },
-        "tailscaleHoasname": {
-            "defaultValue": "tailscale",
-            "type": "String"
-        },
-        "tailscaleAdvertiseRoutes": {
-            "type": "String"
-        },
-        "tailscaleAuthKey": {
-            "type": "securestring"
-        },
         "tailscaleRegistryUsername": {
             "defaultValue": "",
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "If DockerHub is selcted as the Container Registry, leave as default value or empty"
+            }
         },
         "tailscaleRegistryPassword": {
             "defaultValue": "",
-            "type": "secureString"
+            "type": "secureString",
+            "metadata": {
+                "description": "If DockerHub is selcted as the Container Registry, leave as default value or empty"
+            }
 
         }
     },
@@ -76,6 +94,21 @@
         "image_list": {
             "DockerHub": "[variables('dh_image')]",
             "ACR": "[variables('acr_image')]"
+        },
+        "containersize_refrence": "[variables('containersize_list')[parameters('containerSize')]]",
+        "containersize_list": {
+            "Small": {
+                "memoryInGB": 1,
+                "cpu": 1
+            },
+            "Medium": {
+                "memoryInGB": 2,
+                "cpu": 2
+            },
+            "Large": {
+                "memoryInGB": 4,
+                "cpu": 4
+            }
         }
     },
     "resources": [
@@ -119,10 +152,7 @@
                                 }
                             ],
                             "resources": {
-                                "requests": {
-                                    "memoryInGB": 1,
-                                    "cpu": 1
-                                }
+                                "requests": "[variables('containersize_refrence')]"
                             },
                             "volumeMounts": [
                                 {

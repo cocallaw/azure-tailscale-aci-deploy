@@ -1,8 +1,20 @@
-param region string = resourceGroup().location
 param vnetExistingName string
 param vnetExistingSubnet string
 param aciStorageAccountName string
 param aciContainerGroupName string
+param tailscaleHoasname string = 'tailscale'
+param tailscaleAdvertiseRoutes string
+
+@secure()
+param tailscaleAuthKey string
+
+@description('Size of the ACI container to deploy')
+@allowed([
+  'Small'
+  'Medium'
+  'Large'
+])
+param containerSize string = 'Small'
 
 @description('Selecting DockerHub will pull the Tailscale image from hub.docker.com/r/cocallaw/tailscale-sr.')
 @allowed([
@@ -16,13 +28,11 @@ param tailscaleImageRepository string = 'myacr.azurecr.io/tailscale'
 
 @description('If DockerHub is selcted as the Container Registry, leave as default value or empty')
 param tailscaleImageTag string = 'latest'
-param tailscaleHoasname string = 'tailscale'
-param tailscaleAdvertiseRoutes string
 
-@secure()
-param tailscaleAuthKey string
+@description('If DockerHub is selcted as the Container Registry, leave as default value or empty')
 param tailscaleRegistryUsername string = ''
 
+@description('If DockerHub is selcted as the Container Registry, leave as default value or empty')
 @secure()
 param tailscaleRegistryPassword string = ''
 
@@ -43,10 +53,25 @@ var image_list = {
   DockerHub: dh_image
   ACR: acr_image
 }
+var containersize_refrence = containersize_list[containerSize]
+var containersize_list = {
+  Small: {
+    memoryInGB: 1
+    cpu: 1
+  }
+  Medium: {
+    memoryInGB: 2
+    cpu: 2
+  }
+  Large: {
+    memoryInGB: 4
+    cpu: 4
+  }
+}
 
 resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGroups@2021-10-01' = {
   name: aciContainerGroupName
-  location: region
+  location: resourceGroup().location
   identity: {
     type: 'None'
   }
@@ -79,10 +104,7 @@ resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGr
             }
           ]
           resources: {
-            requests: {
-              memoryInGB: 1
-              cpu: 1
-            }
+            requests: containersize_refrence
           }
           volumeMounts: [
             {
@@ -131,7 +153,7 @@ resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGr
 
 resource aciStorageAccountName_resource 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   name: aciStorageAccountName
-  location: region
+  location: resourceGroup().location
   kind: 'StorageV2'
   sku: {
     name: 'Standard_LRS'
