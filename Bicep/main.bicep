@@ -1,11 +1,18 @@
 param region string = resourceGroup().location
+@description('The name of the existing virtual network')
 param vnetExistingName string
+@description('The name of the subnet in the existing virtual network that ACI will attach to')
 param vnetExistingSubnet string
+@description('The name of the storage account to be created to store ACI state information')
 param aciStorageAccountName string
+@description('The name of the ACI Container Group to be created')
 param aciContainerGroupName string
-param tailscaleHoasname string = 'tailscale'
+@description('The hostname for the Tailscale instance, that Tailscale will use to identify this instance on the Tailnet')
+param tailscaleHostname string = 'tailscale'
+@description('The CIDR ranges to advertise to the Tailnet')
 param tailscaleAdvertiseRoutes string
 
+@description('The Tailscale Auth Key to be used to join the ACI instance to the Tailnet')
 @secure()
 param tailscaleAuthKey string
 
@@ -93,7 +100,7 @@ resource aciContainerGroupName_resource 'Microsoft.ContainerInstance/containerGr
           environmentVariables: [
             {
               name: 'TAILSCALE_HOSTNAME'
-              value: tailscaleHoasname
+              value: tailscaleHostname
             }
             {
               name: 'TAILSCALE_ADVERTISE_ROUTES'
@@ -157,7 +164,6 @@ resource aciStorageAccountName_resource 'Microsoft.Storage/storageAccounts@2021-
   kind: 'StorageV2'
   sku: {
     name: 'Standard_LRS'
-    tier: 'Standard'
   }
   properties: {
     allowCrossTenantReplication: true
