@@ -14,7 +14,7 @@
         "aciContainerGroupName": {
             "value": "mycontainergroup" 
         },
-        "tailscaleHoasname": {
+        "tailscaleHostname": {
             "value": "tailscale"
         },
         "tailscaleAdvertiseRoutes": {

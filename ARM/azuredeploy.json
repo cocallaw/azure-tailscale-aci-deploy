@@ -3,26 +3,47 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "vnetExistingName": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The name of the existing virtual network"
+            }
         },
         "vnetExistingSubnet": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The name of the subnet in the existing virtual network that ACI will attach to"
+            }
         },
         "aciStorageAccountName": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The name of the storage account to be created to store the ACI state information"
+            }
         },
         "aciContainerGroupName": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The name of the ACI Container Group to be created"
+            }
         },
-        "tailscaleHoasname": {
+        "tailscaleHostname": {
             "defaultValue": "tailscale",
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The hostname for the Subnet Router instance that Tailscale will use to identify this instance on the Tailnet"
+            }
         },
         "tailscaleAdvertiseRoutes": {
-            "type": "String"
+            "type": "String",
+            "metadata": {
+                "description": "The CIDR ranges to advertise to the Tailnet"
+            }
         },
         "tailscaleAuthKey": {
-            "type": "securestring"
+            "type": "securestring",
+            "metadata": {
+                "description": "The Tailscale Auth Key to be used to join the ACI instance to the Tailnet"
+            }
         },
         "containerSize": {
             "type": "String",
@@ -140,7 +161,7 @@
                             "environmentVariables": [
                                 {
                                     "name": "TAILSCALE_HOSTNAME",
-                                    "value": "[parameters('tailscaleHoasname')]"
+                                    "value": "[parameters('tailscaleHostname')]"
                                 },
                                 {
                                     "name": "TAILSCALE_ADVERTISE_ROUTES",
