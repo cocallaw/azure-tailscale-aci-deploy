@@ -44,7 +44,7 @@ jobs:
       
       - name: Convert Bicep Parameters to ARM Parameters
         run: |
-          bicep build-params -f Bicep/Private-Endpoints/main.bicepparam --outdir ARM/Private-Endpoints --outfile azuredeploy.parameters.json
+          bicep build-params -f Bicep/Private-Endpoints/azuredeploy.parameters.json --outdir ARM/Private-Endpoints
           mv ARM/Private-Endpoints/main.parameters.json ARM/Private-Endpoints/azuredeploy.parameters.json
       
       - name: Commit and Push Changes
