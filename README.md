@@ -21,14 +21,14 @@ The Docker container must be built and pushed to an ACR if the parameter `contai
 ```bash
 docker build \
   --tag tailscale-subnet-router:v1 \
-  --file ./docker/tailscale.Dockerfile \
+  --file ./docker/Dockerfile \
   .
 
 # Optionally override the tag for the base `tailscale/tailscale` image
 docker build \
   --build-arg TAILSCALE_TAG=v1.29.18 \
   --tag tailscale-subnet-router:v1 \
-  --file ./docker/tailscale.Dockerfile \
+  --file ./docker/Dockerfile \
   .
 ```
 
