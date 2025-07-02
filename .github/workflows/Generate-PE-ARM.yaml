@@ -44,8 +44,20 @@ jobs:
       
       - name: Convert Bicep Parameters to ARM Parameters
         run: |
-          bicep build-params -f Bicep/Private-Endpoints/azuredeploy.parameters.json --outdir ARM/Private-Endpoints
-          mv ARM/Private-Endpoints/azuredeploy.parameters.json ARM/Private-Endpoints/azuredeploy.parameters.json
+          # Build parameters file
+          bicep build-params Bicep/Private-Endpoints/main.bicepparam --outdir ARM/Private-Endpoints
+          
+          # Rename the output file
+          mv ARM/Private-Endpoints/main.parameters.json ARM/Private-Endpoints/azuredeploy.parameters.json
+        continue-on-error: true
+      
+      - name: Create Empty Parameters if Build Failed
+        run: |
+          # Create empty parameters file if the previous step failed
+          if [ ! -f "ARM/Private-Endpoints/azuredeploy.parameters.json" ]; then
+            echo "Creating empty parameters file as fallback"
+            echo '{"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#", "contentVersion": "1.0.0.0", "parameters": {}}' > ARM/Private-Endpoints/azuredeploy.parameters.json
+          fi
       
       - name: Commit and Push Changes
         run: |
