@@ -1,0 +1,64 @@
+name: Generate Private-Endpoints ARM Template
+
+on:
+  push:
+    paths:
+      - 'Bicep/Private-Endpoints/**'
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'Bicep/Private-Endpoints/**'
+  workflow_dispatch:
+
+jobs:
+  generate-arm-template:
+    name: Generate ARM Template
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Azure CLI
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            echo "Azure CLI installed"
+      
+      - name: Install Bicep CLI
+        run: |
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x ./bicep
+          sudo mv ./bicep /usr/local/bin/bicep
+          bicep --version
+      
+      - name: Create Output Directory
+        run: |
+          mkdir -p ARM/Private-Endpoints
+      
+      - name: Build ARM Template
+        run: |
+          bicep build Bicep/Private-Endpoints/main.bicep --outdir ARM/Private-Endpoints
+          mv ARM/Private-Endpoints/main.json ARM/Private-Endpoints/azuredeploy.json
+      
+      - name: Convert Bicep Parameters to ARM Parameters
+        run: |
+          bicep build-params Bicep/Private-Endpoints/main.bicepparam --outdir ARM/Private-Endpoints
+          mv ARM/Private-Endpoints/main.parameters.json ARM/Private-Endpoints/azuredeploy.parameters.json
+      
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add ARM/Private-Endpoints/azuredeploy.json
+          git add ARM/Private-Endpoints/azuredeploy.parameters.json
+          
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update ARM templates for Private-Endpoints [skip ci]"
+            git push
+          fi
