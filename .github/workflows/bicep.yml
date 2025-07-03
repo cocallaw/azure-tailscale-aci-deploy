@@ -51,6 +51,10 @@ jobs:
         sudo mv ./bicep /usr/local/bin/bicep
         bicep --version
 
+    - name: Create build directory for Private Endpoints
+      run: |
+        mkdir -p ./build/private-endpoints
+
     - name: Run Bicep build for Private Endpoints
       run: |
         bicep build Bicep/Private-Endpoints/main.bicep --outdir ./build/private-endpoints
@@ -86,6 +90,10 @@ jobs:
         chmod +x ./bicep
         sudo mv ./bicep /usr/local/bin/bicep
         bicep --version
+
+    - name: Create build directory for Service Endpoints
+      run: |
+        mkdir -p ./build/service-endpoints
 
     - name: Run Bicep build for Service Endpoints
       run: |
