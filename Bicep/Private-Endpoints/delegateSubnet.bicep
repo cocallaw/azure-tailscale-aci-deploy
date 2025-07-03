@@ -26,7 +26,7 @@ var updatedDelegations = hasCIDelegation ? existingDelegations : concat(existing
 var addressPrefixesArray = empty(subnetAddressPrefix) ? [] : [subnetAddressPrefix]
 
 // Only update the subnet if the delegation needs to be added
-resource subnet 'Microsoft.Network/virtualNetworks/subnets@2024-07-01' = {
+resource subnet 'Microsoft.Network/virtualNetworks/subnets@2024-07-01' = if (!hasCIDelegation) {
   name: '${vnetName}/${subnetName}'
   properties: {
     addressPrefixes: addressPrefixesArray
