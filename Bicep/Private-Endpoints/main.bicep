@@ -56,6 +56,7 @@ param resourceTags object = {
 var fileShareName = 'tailscale-data'
 var ghcrImage = 'ghcr.io/cocallaw/tailscale-sr:latest'
 var imageReference = useCustomAcr ? '${acrRepository}:${acrImageTag}' : ghcrImage
+var enableContainerDebug = false
 var containersizeReference = containersizeList[containerSize]
 var containersizeList = {
   Small: {
@@ -248,7 +249,7 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2024-10-01-
             }
             {
               name: 'DEBUG'
-              value: 'true'
+              value: enableContainerDebug
             }
           ]
           resources: {
