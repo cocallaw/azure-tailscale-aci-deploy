@@ -1,0 +1,100 @@
+name: Generate Service-Endpoints ARM Template
+
+on:
+  push:
+    paths:
+      - 'Bicep/Service-Endpoints/**'
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'Bicep/Service-Endpoints/**'
+  workflow_dispatch:
+
+jobs:
+  generate-arm-template:
+    name: Generate ARM Template
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Setup Azure CLI
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            echo "Azure CLI installed"
+      
+      - name: Install Bicep CLI
+        run: |
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x ./bicep
+          sudo mv ./bicep /usr/local/bin/bicep
+          bicep --version
+      
+      - name: Create Output Directory
+        run: |
+          mkdir -p ARM/Service-Endpoints
+      
+      - name: Build ARM Template
+        run: |
+          bicep build Bicep/Service-Endpoints/main.bicep --outdir ARM/Service-Endpoints
+          mv ARM/Service-Endpoints/main.json ARM/Service-Endpoints/azuredeploy.json
+      
+      - name: Convert Bicep Parameters to ARM Parameters
+        run: |
+          # Check if the bicepparam file exists first
+          if [ -f "Bicep/Service-Endpoints/main.bicepparam" ]; then
+            echo "Found main.bicepparam, attempting to build parameters..."
+            
+            if bicep build-params Bicep/Service-Endpoints/main.bicepparam --outdir ARM/Service-Endpoints; then
+              echo "Successfully built parameters file"
+              
+              if [ -f "ARM/Service-Endpoints/main.parameters.json" ]; then
+                mv ARM/Service-Endpoints/main.parameters.json ARM/Service-Endpoints/azuredeploy.parameters.json
+                echo "Successfully renamed to azuredeploy.parameters.json"
+              else
+                echo "Warning: Expected main.parameters.json was not created"
+                ls -la ARM/Service-Endpoints/
+              fi
+            else
+              echo "bicep build-params command failed"
+            fi
+          else
+            echo "No main.bicepparam file found"
+            ls -la Bicep/Service-Endpoints/
+          fi
+        continue-on-error: true
+      
+      - name: Create Empty Parameters if Build Failed
+        run: |
+          # Create empty parameters file if the previous step failed
+          if [ ! -f "ARM/Service-Endpoints/azuredeploy.parameters.json" ]; then
+            echo "Creating empty parameters file as fallback"
+            echo '{"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#", "contentVersion": "1.0.0.0", "parameters": {}}' > ARM/Service-Endpoints/azuredeploy.parameters.json
+          fi
+      
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Only proceed if we're on the main branch (not a PR)
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            git add ARM/Service-Endpoints/azuredeploy.json
+            git add ARM/Service-Endpoints/azuredeploy.parameters.json
+            
+            # Only commit if there are changes
+            if git diff --staged --quiet; then
+              echo "No changes to commit"
+            else
+              git commit -m "Update ARM templates for Service-Endpoints [skip ci]"
+              git push
+            fi
+          else
+            echo "Skipping commit for PR or non-main branch"
+          fi
