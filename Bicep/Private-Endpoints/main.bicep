@@ -152,14 +152,14 @@ resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2024-0
 }
 
 // Create Private DNS Zone for Azure Files
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
   name: privateDnsZoneName
   location: 'global'
   tags: resourceTags
 }
 
 // Link Private DNS Zone to VNet
-resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
   name: '${privateDnsZone.name}-link'
   parent: privateDnsZone
   location: 'global'
