@@ -17,43 +17,130 @@ jobs:
     runs-on: ubuntu-latest
     # Set job outputs to values from filter step
     outputs:
-      biceptemplate: ${{ steps.filter.outputs.biceptemplate }}
+      private-endpoints: ${{ steps.filter.outputs.private-endpoints }}
+      service-endpoints: ${{ steps.filter.outputs.service-endpoints }}
     steps:
     # For pull requests it's not necessary to checkout the code
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
-    - uses: dorny/paths-filter@v2
+    - uses: dorny/paths-filter@v3
       id: filter
       with:
         filters: |
-          biceptemplate:
-            - 'Bicep/*.bicep'
+          private-endpoints:
+            - 'Bicep/Private-Endpoints/**'
+          service-endpoints:
+            - 'Bicep/Service-Endpoints/**'
 
-
-  build_and_test:
+  # Job for Private-Endpoints
+  build_and_test_private_endpoints:
     needs: changes
-    if: ${{ needs.changes.outputs.biceptemplate == 'true' }}
-    name: Bicep Build and Test
+    if: ${{ needs.changes.outputs.private-endpoints == 'true' }}
+    name: Bicep Build and Test - Private Endpoints
 
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout the repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
-    - name: Run Bicep build
-      uses: aliencube/bicep-build-actions@v0.1
-      with:
-        files: 'Bicep/main.bicep'
+    - name: Install Bicep CLI
+      run: |
+        curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+        chmod +x ./bicep
+        sudo mv ./bicep /usr/local/bin/bicep
+        bicep --version
 
-    - name: Run ARM TTK
+    - name: Run Bicep build for Private Endpoints
+      run: |
+        bicep build Bicep/Private-Endpoints/main.bicep --outdir ./build/private-endpoints
+        echo "Private Endpoints template built successfully"
+
+    - name: Run ARM TTK for Private Endpoints
       uses: aliencube/arm-ttk-actions@v0.3
-      id: armtest
+      id: armtest-private
       with:
-        path: ./Bicep/main.json
+        path: ./build/private-endpoints/main.json
 
-    - name: Show ARM TTK test result
+    - name: Show ARM TTK test result for Private Endpoints
       shell: bash
       continue-on-error: true
       run: |
-        echo 'Results: ${{ toJSON(fromJSON(steps.armtest.outputs.results)) }}'       
+        echo 'Private Endpoints Results: ${{ toJSON(fromJSON(steps.armtest-private.outputs.results)) }}'
+
+  # Job for Service-Endpoints
+  build_and_test_service_endpoints:
+    needs: changes
+    if: ${{ needs.changes.outputs.service-endpoints == 'true' }}
+    name: Bicep Build and Test - Service Endpoints
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the repo
+      uses: actions/checkout@v4
+
+    - name: Install Bicep CLI
+      run: |
+        curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+        chmod +x ./bicep
+        sudo mv ./bicep /usr/local/bin/bicep
+        bicep --version
+
+    - name: Run Bicep build for Service Endpoints
+      run: |
+        bicep build Bicep/Service-Endpoints/main.bicep --outdir ./build/service-endpoints
+        echo "Service Endpoints template built successfully"
+
+    - name: Run ARM TTK for Service Endpoints
+      uses: aliencube/arm-ttk-actions@v0.3
+      id: armtest-service
+      with:
+        path: ./build/service-endpoints/main.json
+
+    - name: Show ARM TTK test result for Service Endpoints
+      shell: bash
+      continue-on-error: true
+      run: |
+        echo 'Service Endpoints Results: ${{ toJSON(fromJSON(steps.armtest-service.outputs.results)) }}'
+
+  # Optional: Combined job that runs if either template changes
+  build_and_test_all:
+    needs: changes
+    if: ${{ needs.changes.outputs.private-endpoints == 'true' || needs.changes.outputs.service-endpoints == 'true' }}
+    name: Bicep Build and Test - All Templates
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the repo
+      uses: actions/checkout@v4
+
+    - name: Install Bicep CLI
+      run: |
+        curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+        chmod +x ./bicep
+        sudo mv ./bicep /usr/local/bin/bicep
+        bicep --version
+
+    - name: Create build directories
+      run: |
+        mkdir -p ./build/private-endpoints
+        mkdir -p ./build/service-endpoints
+
+    - name: Build Private Endpoints template
+      if: ${{ needs.changes.outputs.private-endpoints == 'true' }}
+      run: |
+        bicep build Bicep/Private-Endpoints/main.bicep --outdir ./build/private-endpoints
+        echo "✅ Private Endpoints template built successfully"
+
+    - name: Build Service Endpoints template
+      if: ${{ needs.changes.outputs.service-endpoints == 'true' }}
+      run: |
+        bicep build Bicep/Service-Endpoints/main.bicep --outdir ./build/service-endpoints
+        echo "✅ Service Endpoints template built successfully"
+
+    - name: List built templates
+      run: |
+        echo "Built templates:"
+        find ./build -name "*.json" -type f
