@@ -1,23 +1,21 @@
-name: Generate Private-Endpoints ARM Template
+name: Generate Private-Endpoints ARM Templates
 
 on:
   push:
+    branches: [ main ]
     paths:
       - 'Bicep/Private-Endpoints/**'
-    branches:
-      - main
   pull_request:
+    branches: [ main ]
     paths:
       - 'Bicep/Private-Endpoints/**'
-  workflow_dispatch:
 
 jobs:
-  generate-arm-template:
-    name: Generate ARM Template
+  build:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -36,33 +34,42 @@ jobs:
           sudo mv ./bicep /usr/local/bin/bicep
           bicep --version
       
-      - name: Create Output Directory
+      - name: Create ARM Directory
         run: |
           mkdir -p ARM/Private-Endpoints
+          echo "Created ARM/Private-Endpoints directory"
+          ls -la ARM/
       
-      - name: Build ARM Template
+      - name: Build Bicep to ARM
         run: |
-          bicep build Bicep/Private-Endpoints/main.bicep --outdir ARM/Private-Endpoints
-          mv ARM/Private-Endpoints/main.json ARM/Private-Endpoints/azuredeploy.json
+          echo "Building main.bicep to ARM template"
+          bicep build Bicep/Private-Endpoints/main.bicep --outfile ARM/Private-Endpoints/azuredeploy.json
+          
+          if [ -f "ARM/Private-Endpoints/azuredeploy.json" ]; then
+            echo "Successfully built ARM template"
+            ls -la ARM/Private-Endpoints/
+          else
+            echo "Failed to build ARM template"
+            exit 1
+          fi
       
-      - name: Convert Bicep Parameters to ARM Parameters
+      - name: Build Parameters from Bicep
         run: |
-          # Check if the bicepparam file exists first
+          echo "Building parameters from main.bicepparam"
+          
+          # Check if the parameter file exists
           if [ -f "Bicep/Private-Endpoints/main.bicepparam" ]; then
-            echo "Found main.bicepparam, attempting to build parameters..."
+            echo "Found main.bicepparam file"
+            cat Bicep/Private-Endpoints/main.bicepparam
             
-            if bicep build-params Bicep/Private-Endpoints/main.bicepparam --outdir ARM/Private-Endpoints; then
+            # Build parameters file
+            bicep build-params Bicep/Private-Endpoints/main.bicepparam --outfile ARM/Private-Endpoints/azuredeploy.parameters.json
+            
+            if [ -f "ARM/Private-Endpoints/azuredeploy.parameters.json" ]; then
               echo "Successfully built parameters file"
-              
-              if [ -f "ARM/Private-Endpoints/main.parameters.json" ]; then
-                mv ARM/Private-Endpoints/main.parameters.json ARM/Private-Endpoints/azuredeploy.parameters.json
-                echo "Successfully renamed to azuredeploy.parameters.json"
-              else
-                echo "Warning: Expected main.parameters.json was not created"
-                ls -la ARM/Private-Endpoints/
-              fi
+              cat ARM/Private-Endpoints/azuredeploy.parameters.json
             else
-              echo "bicep build-params command failed"
+              echo "Failed to build parameters file"
             fi
           else
             echo "No main.bicepparam file found"
@@ -77,22 +84,52 @@ jobs:
             echo '{"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#", "contentVersion": "1.0.0.0", "parameters": {}}' > ARM/Private-Endpoints/azuredeploy.parameters.json
           fi
       
-      - name: Commit and Push Changes
+      - name: Check for Changes
+        id: check_changes
+        run: |
+          git add ARM/Private-Endpoints/azuredeploy.json
+          git add ARM/Private-Endpoints/azuredeploy.parameters.json
+          
+          if git diff --staged --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changes to commit"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected"
+          fi
+      
+      - name: Create Pull Request
+        if: steps.check_changes.outputs.has_changes == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update ARM templates for Private-Endpoints [skip ci]"
+          title: "🔄 Update Private-Endpoints ARM Templates"
+          body: |
+            ## Auto-generated ARM Template Update
+            
+            This PR was automatically created by the GitHub Actions workflow to update the ARM templates for Private-Endpoints.
+            
+            ### Changes:
+            - Updated `ARM/Private-Endpoints/azuredeploy.json` from Bicep template
+            - Updated `ARM/Private-Endpoints/azuredeploy.parameters.json` from Bicep parameters
+            
+            ### Files Modified:
+            - `ARM/Private-Endpoints/azuredeploy.json`
+            - `ARM/Private-Endpoints/azuredeploy.parameters.json`
+            
+            This PR was generated from changes to the Bicep templates in the `Bicep/Private-Endpoints/` directory.
+            
+            Please review the changes and merge if they look correct.
+          branch: update-pe-arm-templates
+          delete-branch: true
+          base: main
+          
+      - name: Direct Commit (for non-protected branches)
+        if: steps.check_changes.outputs.has_changes == 'true' && github.event_name == 'push' && github.ref != 'refs/heads/main'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
-          # Only proceed if we're on the main branch (not a PR)
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            git add ARM/Private-Endpoints/azuredeploy.json
-            git add ARM/Private-Endpoints/azuredeploy.parameters.json
-            
-            if git diff --staged --quiet; then
-              echo "No changes to commit"
-            else
-              git commit -m "Update ARM templates for Private-Endpoints [skip ci]"
-              git push
-            fi
-          else
-            echo "Skipping commit for PR or non-main branch"
-          fi
+          git commit -m "Update ARM templates for Private-Endpoints [skip ci]"
+          git push
