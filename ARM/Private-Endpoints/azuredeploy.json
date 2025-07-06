@@ -1,0 +1,527 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.36.1.42791",
+      "templateHash": "14003229171617231504"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "vnetExistingResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the existing resource group where the virtual network is located"
+      }
+    },
+    "vnetExistingName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the existing virtual network"
+      }
+    },
+    "aciSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the subnet in the existing virtual network that ACI will attach to"
+      }
+    },
+    "privateEndpointSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the subnet in the existing virtual network for Private Endpoints"
+      }
+    },
+    "aciStorageAccountName": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 24,
+      "metadata": {
+        "description": "The name of the storage account to be created to store ACI state information"
+      }
+    },
+    "aciContainerGroupName": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 63,
+      "metadata": {
+        "description": "The name of the ACI Container Group to be created"
+      }
+    },
+    "tailscaleHostname": {
+      "type": "string",
+      "defaultValue": "aztailscale",
+      "metadata": {
+        "description": "The hostname for the Tailscale instance, that Tailscale will use to identify this instance on the Tailnet"
+      }
+    },
+    "tailscaleAdvertiseRoutes": {
+      "type": "string",
+      "metadata": {
+        "description": "The CIDR ranges to advertise to the Tailnet"
+      }
+    },
+    "tailscaleAuthKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The Tailscale Auth Key to be used to join the ACI instance to the Tailnet"
+      }
+    },
+    "containerSize": {
+      "type": "string",
+      "defaultValue": "Small",
+      "allowedValues": [
+        "Small",
+        "Medium",
+        "Large"
+      ],
+      "metadata": {
+        "description": "Size of the ACI container to deploy"
+      }
+    },
+    "useCustomAcr": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Use custom ACR instead of public GHCR image"
+      }
+    },
+    "acrRepository": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "ACR repository (only used if useCustomAcr is true)"
+      }
+    },
+    "acrImageTag": {
+      "type": "string",
+      "defaultValue": "latest",
+      "metadata": {
+        "description": "ACR image tag (only used if useCustomAcr is true)"
+      }
+    },
+    "acrUsername": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "ACR username (only used if useCustomAcr is true)"
+      }
+    },
+    "acrPassword": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "ACR password (only used if useCustomAcr is true)"
+      }
+    },
+    "resourceTags": {
+      "type": "object",
+      "defaultValue": {
+        "createdBy": "Bicep",
+        "createdOn": "[utcNow()]"
+      }
+    }
+  },
+  "variables": {
+    "fileShareName": "tailscale-data",
+    "ghcrImage": "ghcr.io/cocallaw/tailscale-sr:latest",
+    "imageReference": "[if(parameters('useCustomAcr'), format('{0}:{1}', parameters('acrRepository'), parameters('acrImageTag')), variables('ghcrImage'))]",
+    "enableContainerDebug": false,
+    "containersizeReference": "[variables('containersizeList')[parameters('containerSize')]]",
+    "containersizeList": {
+      "Small": {
+        "memoryInGB": 1,
+        "cpu": 1
+      },
+      "Medium": {
+        "memoryInGB": 2,
+        "cpu": 2
+      },
+      "Large": {
+        "memoryInGB": 4,
+        "cpu": 4
+      }
+    },
+    "storageEnvironmentSuffix": "[environment().suffixes.storage]",
+    "privateDnsZoneName": "[format('privatelink.file.{0}', variables('storageEnvironmentSuffix'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2024-01-01",
+      "name": "[parameters('aciStorageAccountName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "minimumTlsVersion": "TLS1_2",
+        "supportsHttpsTrafficOnly": true,
+        "allowBlobPublicAccess": false,
+        "allowSharedKeyAccess": true,
+        "defaultToOAuthAuthentication": false,
+        "accessTier": "Hot",
+        "publicNetworkAccess": "Enabled",
+        "networkAcls": {
+          "bypass": "AzureServices",
+          "defaultAction": "Deny",
+          "ipRules": [],
+          "virtualNetworkRules": []
+        },
+        "dnsEndpointType": "Standard",
+        "encryption": {
+          "keySource": "Microsoft.Storage",
+          "services": {
+            "blob": {
+              "enabled": true
+            },
+            "file": {
+              "enabled": true
+            },
+            "table": {
+              "enabled": true
+            },
+            "queue": {
+              "enabled": true
+            }
+          },
+          "requireInfrastructureEncryption": false
+        }
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "tags": "[parameters('resourceTags')]"
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices",
+      "apiVersion": "2024-01-01",
+      "name": "[format('{0}/{1}', parameters('aciStorageAccountName'), 'default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('aciStorageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2024-01-01",
+      "name": "[format('{0}/{1}/{2}', parameters('aciStorageAccountName'), 'default', variables('fileShareName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices', parameters('aciStorageAccountName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2024-06-01",
+      "name": "[variables('privateDnsZoneName')]",
+      "location": "global",
+      "tags": "[parameters('resourceTags')]"
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2024-06-01",
+      "name": "[format('{0}/{1}', variables('privateDnsZoneName'), format('{0}-link', variables('privateDnsZoneName')))]",
+      "location": "global",
+      "properties": {
+        "registrationEnabled": false,
+        "virtualNetwork": {
+          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks', parameters('vnetExistingName'))]"
+        }
+      },
+      "tags": "[parameters('resourceTags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}-pe', parameters('aciStorageAccountName'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('resourceTags')]",
+      "properties": {
+        "privateLinkServiceConnections": [
+          {
+            "name": "[format('{0}-plsc', parameters('aciStorageAccountName'))]",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('Microsoft.Storage/storageAccounts', parameters('aciStorageAccountName'))]",
+              "groupIds": [
+                "file"
+              ]
+            }
+          }
+        ],
+        "subnet": {
+          "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('privateEndpointSubnetName'))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('aciStorageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/{1}', format('{0}-pe', parameters('aciStorageAccountName')), 'default')]",
+      "properties": {
+        "privateDnsZoneConfigs": [
+          {
+            "name": "config1",
+            "properties": {
+              "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]",
+        "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-pe', parameters('aciStorageAccountName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2024-10-01-preview",
+      "name": "[parameters('aciContainerGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('resourceTags')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "sku": "Standard",
+        "containers": [
+          {
+            "name": "tailscaleaci",
+            "properties": {
+              "image": "[variables('imageReference')]",
+              "command": [],
+              "ports": [
+                {
+                  "protocol": "TCP",
+                  "port": 443
+                }
+              ],
+              "environmentVariables": [
+                {
+                  "name": "TAILSCALE_HOSTNAME",
+                  "value": "[parameters('tailscaleHostname')]"
+                },
+                {
+                  "name": "TAILSCALE_ADVERTISE_ROUTES",
+                  "value": "[parameters('tailscaleAdvertiseRoutes')]"
+                },
+                {
+                  "name": "TAILSCALE_AUTH_KEY",
+                  "secureValue": "[parameters('tailscaleAuthKey')]"
+                },
+                {
+                  "name": "DEBUG",
+                  "value": "[variables('enableContainerDebug')]"
+                }
+              ],
+              "resources": {
+                "requests": "[variables('containersizeReference')]"
+              },
+              "volumeMounts": [
+                {
+                  "name": "tailscale-volume",
+                  "mountPath": "/var/lib/tailscale",
+                  "readOnly": false
+                }
+              ],
+              "livenessProbe": {
+                "exec": {
+                  "command": [
+                    "/bin/sh",
+                    "-c",
+                    "tailscale status || exit 1"
+                  ]
+                },
+                "initialDelaySeconds": 60,
+                "periodSeconds": 30,
+                "failureThreshold": 3,
+                "successThreshold": 1,
+                "timeoutSeconds": 10
+              }
+            }
+          }
+        ],
+        "imageRegistryCredentials": "[if(parameters('useCustomAcr'), createArray(createObject('server', first(split(parameters('acrRepository'), '/')), 'username', parameters('acrUsername'), 'password', parameters('acrPassword'))), createArray())]",
+        "restartPolicy": "Always",
+        "ipAddress": {
+          "ports": [
+            {
+              "protocol": "TCP",
+              "port": 443
+            }
+          ],
+          "type": "Private"
+        },
+        "subnetIds": [
+          {
+            "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Resources/deployments', 'delegateAciSubnet'), '2022-09-01').outputs.subnetId.value]"
+          }
+        ],
+        "osType": "Linux",
+        "volumes": [
+          {
+            "name": "tailscale-volume",
+            "azureFile": {
+              "readOnly": false,
+              "shareName": "[variables('fileShareName')]",
+              "storageAccountKey": "[listKeys(parameters('aciStorageAccountName'), '2024-01-01').keys[0].value]",
+              "storageAccountName": "[parameters('aciStorageAccountName')]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Resources/deployments', 'delegateAciSubnet')]",
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices/shares', parameters('aciStorageAccountName'), 'default', variables('fileShareName'))]",
+        "[resourceId('Microsoft.Network/privateEndpoints/privateDnsZoneGroups', format('{0}-pe', parameters('aciStorageAccountName')), 'default')]",
+        "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-pe', parameters('aciStorageAccountName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "delegateAciSubnet",
+      "resourceGroup": "[parameters('vnetExistingResourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "vnetName": {
+            "value": "[parameters('vnetExistingName')]"
+          },
+          "subnetName": {
+            "value": "[parameters('aciSubnetName')]"
+          },
+          "subnetAddressPrefix": "[if(and(contains(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01'), 'addressPrefixes'), greater(length(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01').addressPrefixes), 0)), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01').addressPrefixes[0]), createObject('value', coalesce(tryGet(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01'), 'addressPrefix'), '')))]",
+          "existingDelegations": {
+            "value": "[coalesce(tryGet(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01'), 'delegations'), createArray())]"
+          },
+          "networkSecurityGroupId": "[if(contains(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01'), 'networkSecurityGroup'), createObject('value', coalesce(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01').networkSecurityGroup.id, '')), createObject('value', ''))]",
+          "routeTableId": "[if(contains(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01'), 'routeTable'), createObject('value', coalesce(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01').routeTable.id, '')), createObject('value', ''))]",
+          "serviceEndpoints": {
+            "value": "[coalesce(tryGet(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01'), 'serviceEndpoints'), createArray())]"
+          },
+          "privateEndpointNetworkPolicies": {
+            "value": "[coalesce(tryGet(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01'), 'privateEndpointNetworkPolicies'), 'Enabled')]"
+          },
+          "privateLinkServiceNetworkPolicies": {
+            "value": "[coalesce(tryGet(reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetExistingName'), parameters('aciSubnetName')), '2024-07-01'), 'privateLinkServiceNetworkPolicies'), 'Enabled')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.36.1.42791",
+              "templateHash": "12524762834057448619"
+            }
+          },
+          "parameters": {
+            "vnetName": {
+              "type": "string"
+            },
+            "subnetName": {
+              "type": "string"
+            },
+            "subnetAddressPrefix": {
+              "type": "string"
+            },
+            "existingDelegations": {
+              "type": "array",
+              "defaultValue": []
+            },
+            "networkSecurityGroupId": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "routeTableId": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "serviceEndpoints": {
+              "type": "array",
+              "defaultValue": []
+            },
+            "privateEndpointNetworkPolicies": {
+              "type": "string",
+              "defaultValue": "Enabled"
+            },
+            "privateLinkServiceNetworkPolicies": {
+              "type": "string",
+              "defaultValue": "Enabled"
+            }
+          },
+          "variables": {
+            "hasCIDelegation": "[contains(map(parameters('existingDelegations'), lambda('d', lambdaVariables('d').properties.serviceName)), 'Microsoft.ContainerInstance/containerGroups')]",
+            "updatedDelegations": "[if(variables('hasCIDelegation'), parameters('existingDelegations'), concat(parameters('existingDelegations'), createArray(createObject('name', 'Microsoft.ContainerInstance.containerGroups', 'properties', createObject('serviceName', 'Microsoft.ContainerInstance/containerGroups')))))]",
+            "addressPrefixesArray": "[if(empty(parameters('subnetAddressPrefix')), createArray(), createArray(parameters('subnetAddressPrefix')))]"
+          },
+          "resources": [
+            {
+              "condition": "[not(variables('hasCIDelegation'))]",
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2024-07-01",
+              "name": "[format('{0}/{1}', parameters('vnetName'), parameters('subnetName'))]",
+              "properties": {
+                "addressPrefixes": "[variables('addressPrefixesArray')]",
+                "delegations": "[variables('updatedDelegations')]",
+                "networkSecurityGroup": "[if(not(empty(parameters('networkSecurityGroupId'))), createObject('id', parameters('networkSecurityGroupId')), null())]",
+                "routeTable": "[if(not(empty(parameters('routeTableId'))), createObject('id', parameters('routeTableId')), null())]",
+                "serviceEndpoints": "[parameters('serviceEndpoints')]",
+                "privateEndpointNetworkPolicies": "[parameters('privateEndpointNetworkPolicies')]",
+                "privateLinkServiceNetworkPolicies": "[parameters('privateLinkServiceNetworkPolicies')]"
+              }
+            }
+          ],
+          "outputs": {
+            "subnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', split(format('{0}/{1}', parameters('vnetName'), parameters('subnetName')), '/')[0], split(format('{0}/{1}', parameters('vnetName'), parameters('subnetName')), '/')[1])]"
+            },
+            "delegationAdded": {
+              "type": "bool",
+              "value": "[not(variables('hasCIDelegation'))]"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "containerGroupId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.ContainerInstance/containerGroups', parameters('aciContainerGroupName'))]"
+    },
+    "storageAccountId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('aciStorageAccountName'))]"
+    },
+    "privateEndpointId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-pe', parameters('aciStorageAccountName')))]"
+    },
+    "fileShareName": {
+      "type": "string",
+      "value": "[variables('fileShareName')]"
+    },
+    "delegationAdded": {
+      "type": "bool",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Resources/deployments', 'delegateAciSubnet'), '2022-09-01').outputs.delegationAdded.value]"
+    },
+    "aciSubnetId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('vnetExistingResourceGroupName')), 'Microsoft.Resources/deployments', 'delegateAciSubnet'), '2022-09-01').outputs.subnetId.value]"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vnetExistingResourceGroupName": {
+      "value": "myRG001"
+    },
+    "vnetExistingName": {
+      "value": "myVNet01"
+    },
+    "aciSubnetName": {
+      "value": "mySubnet02"
+    },
+    "privateEndpointSubnetName": {
+      "value": "mySubnet01"
+    },
+    "aciStorageAccountName": {
+      "value": "myStorageAccount01"
+    },
+    "aciContainerGroupName": {
+      "value": "myContainerGroup01"
+    },
+    "tailscaleHostname": {
+      "value": "myTailsContainer"
+    },
+    "tailscaleAdvertiseRoutes": {
+      "value": "10.10.1.0/24"
+    },
+    "tailscaleAuthKey": {
+      "value": "tskey-auth-123456789-hsdfkljh.....456546ds"
+    }
+  }
+}
