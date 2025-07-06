@@ -2,15 +2,51 @@
 
 These Bicep & ARM templates deploy a Tailscale [subnet router][1] as an [Azure Container Instance][2]. The subnet router ACI instance is deployed into an existing Azure Virtual Network and advertises to your Tailnet the CIDR block for the Azure VNet.
 
-<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcocallaw%2Fazure-tailscale-aci-deploy%2Fmain%2FARM%2Fazuredeploy.json" target="_blank">
-    <img src="https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true"/> 
+## Quick Deploy
+
+Choose the deployment option that best fits your networking requirements:
+
+### Private Endpoints (Recommended)
+
+Deploys with private endpoints for secure storage access and enhanced network isolation.
+
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcocallaw%2Fazure-tailscale-aci-deploy%2Frefs%2Fheads%2Fmain%2FARM%2FPrivate-Endpoints%2Fazuredeploy.json" target="_blank">
+    <img src="https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true" alt="Deploy Private Endpoints Template"/>
 </a>
 
-## Deployment 
-When deploying the ARM or Bicep templates, the value of the `containerRegistry` parameter will determine where the deployment pulls the container image from. 
-- If `DockerHub` is selected, the image will be pulled from [cocallaw/tailscale-sr on Docker Hub][3], the parameters `tailscaleImageRepository` and `tailscaleImageRepository` are not used and can be left to their default values or null.
-- If `ACR` is selected, the image will be pulled from Azure Container Registry using the values of the `tailscaleImageRepository` and `tailscaleImageRepository` parameters.
+### Service Endpoints
+
+Deploys with service endpoints for storage access - simpler networking setup.
+
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fcocallaw%2Fazure-tailscale-aci-deploy%2Frefs%2Fheads%2Fmain%2FARM%2FService-Endpoints%2Fazuredeploy.json" target="_blank">
+    <img src="https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true" alt="Deploy Service Endpoints Template"/>
+</a>
+
+## Deployment
+
+When deploying the ARM or Bicep templates, you can choose between two deployment scenarios:
+
+### Private Endpoints Deployment
+
+- Uses private endpoints for secure Azure Files storage access
+- Requires separate subnets for ACI and private endpoints
+- Enhanced security with private network connectivity
+- Recommended for production environments
+
+### Service Endpoints Deployment
+
+- Uses service endpoints for Azure Files storage access
+- Simpler networking configuration
+- Good for development/testing environments
+
+The deployment process is the same for both scenarios. The value of the `useCustomAcr` parameter will determine where the deployment pulls the container image from.
+
+- If `useCustomAcr` is set to `false` (default), the image will be pulled from [cocallaw/tailscale-sr on GitHub Container Registry][3], and the ACR-related parameters are not used.
+
+- If `useCustomAcr` is set to `true`, the image will be pulled from Azure Container Registry using the values of the `acrRepository`, `acrUsername`, and `acrPassword` parameters.
+
 ## Docker Container
+
 The `docker/Dockerfile` file extends the `tailscale/tailscale`
 [image][4] with an entrypoint script that starts the Tailscale daemon and runs
 `tailscale up` using an [auth key][5] and the relevant advertised [CIDR block][6].
@@ -18,6 +54,7 @@ The `docker/Dockerfile` file extends the `tailscale/tailscale`
 The Docker container must be built and pushed to an ACR if the parameter `containerRegistry` is set to `ACR` so that it can be referenced during deployment. If the parameter `containerRegistry` is set to `DockerHub`, the container does not need to be built as it will be pulled from Docker Hub.
 
 ### Build locally with Docker and [push image to ACR][7]
+
 ```bash
 docker build \
   --tag tailscale-subnet-router:v1 \
@@ -33,6 +70,7 @@ docker build \
 ```
 
 ### Build remotely using [Azure Container Registry Tasks][8] with Azure CLI
+
 ```bash
 ACR_NAME=<registry-name>
 az acr build --registry $ACR_NAME --image tailscale:v1 .
@@ -42,8 +80,10 @@ ACR_NAME=<registry-name>
 az acr build --registry $ACR_NAME --build-arg TAILSCALE_TAG=v1.29.18 --image tailscale:v1 .
 ```
 
-## Subnet Delegation 
+## Subnet Delegation
+
 To assist with the deployment of the ACI container group in the Azure VNet, the subnet being used should be [delegated][9] to the `Microsoft.ContainerInstance/containerGroups`.
+
 ```bash
 # Update the subnet with a delegation for Microsoft.ContainerInstance/containerGroups
 az network vnet subnet update \
@@ -61,19 +101,24 @@ az network vnet subnet update \
 ```  
 
 ## Notes
+
 - The Tailscale state (`/var/lib/tailscale`) is stored in a [Azure File Share][10] in a Storage Account so that the subnet router only needs to be [authorized][11] once.
 
 ## Improvements Needed
+
 ### Container Registry Authentication
+
 Currently the templates only support using a username and password to authenticate to the ACR repository, and the server URL is derived from the ACR repository name.
+
 - Validation testing needed for use with Docker Hub
 - Add Option to use [anonymous pull][12] with ACR
 - Investigate using a service principal to authenticate to the ACR repository
 
 ### Container Size Selection
-When the Tailscale container is deployed, the size is set to 1 CPU core and 1 GiB of memory. Currently there is no option to adjust this size, unless the template file is edited.
-- Add Variable Option to adjust the size of the ACI container. Possible Small/Med/Large options that are available for deployment but easily defined by the user. 
 
+When the Tailscale container is deployed, the size is set to 1 CPU core and 1 GiB of memory. Currently there is no option to adjust this size, unless the template file is edited.
+
+- Add Variable Option to adjust the size of the ACI container. Possible Small/Med/Large options that are available for deployment but easily defined by the user.
 
 [1]: https://tailscale.com/kb/1019/subnets/
 [2]: https://docs.microsoft.com/azure/container-instances/container-instances-overview
