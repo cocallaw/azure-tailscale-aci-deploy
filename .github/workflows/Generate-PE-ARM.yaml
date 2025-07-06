@@ -9,6 +9,11 @@ on:
     branches: [ main ]
     paths:
       - 'Bicep/Private-Endpoints/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   build:
@@ -20,12 +25,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-      
-      - name: Setup Azure CLI
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            echo "Azure CLI installed"
+          persist-credentials: true
       
       - name: Install Bicep CLI
         run: |
@@ -98,8 +98,15 @@ jobs:
             echo "Changes detected"
           fi
       
+      - name: Debug Information
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Has changes: ${{ steps.check_changes.outputs.has_changes }}"
+          echo "Should create PR: ${{ steps.check_changes.outputs.has_changes == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}"
+      
       - name: Create Pull Request
-        if: steps.check_changes.outputs.has_changes == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.check_changes.outputs.has_changes == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -124,9 +131,11 @@ jobs:
           branch: update-pe-arm-templates
           delete-branch: true
           base: main
+          committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
           
       - name: Direct Commit (for non-protected branches)
-        if: steps.check_changes.outputs.has_changes == 'true' && github.event_name == 'push' && github.ref != 'refs/heads/main'
+        if: steps.check_changes.outputs.has_changes == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref != 'refs/heads/main'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
