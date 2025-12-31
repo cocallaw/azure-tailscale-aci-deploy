@@ -1,13 +1,15 @@
-## Docker Container
+# Docker Container
 
 The `docker/Dockerfile` file extends the `tailscale/tailscale`
 [image][1] with an entrypoint script that starts the Tailscale daemon and runs
 `tailscale up` using an [auth key][2] and the relevant advertised [CIDR block][3].
 
-When deploying the ARM or Bicep templates, the value of the `containerRegistry` parameter will determine where the deployment pulls the container image from. - If `DockerHub` is selected, the image will be pulled from [cocallaw/tailscale-sr on Docker Hub][4] . 
+When deploying the ARM or Bicep templates, the value of the `containerRegistry` parameter will determine where the deployment pulls the container image from. - If `DockerHub` is selected, the image will be pulled from [cocallaw/tailscale-sr on Docker Hub][4].
+
 - If `ACR` is selected, the image will be pulled from Azure Container Registry using the values of the `tailscaleImageRepository` and `tailscaleImageRepository` parameter.
 
-### Build locally with Docker and [push image to ACR][5]
+## Build locally with Docker and [push image to ACR][5]
+
 ```bash
 docker build \
   --tag tailscale-subnet-router:v1 \
@@ -22,7 +24,8 @@ docker build \
   .
 ```
 
-### Build remotely using [Azure Container Registry Tasks][6] with Azure CLI
+## Build remotely using [Azure Container Registry Tasks][6] with Azure CLI
+
 ```bash
 ACR_NAME=<registry-name>
 az acr build --registry $ACR_NAME --image tailscale:v1 .
